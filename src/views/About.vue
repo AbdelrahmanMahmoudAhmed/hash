@@ -18,16 +18,34 @@
       <input type="text" ref="deleteBook" placeholder="type the id book" />
       <input type="submit" value="delete book" />
     </form>
+    <br />
+    <br />
+    <form
+      action=""
+      class="update"
+      @submit.prevent="updateForm"
+      ref="formUpdate"
+    >
+      <input type="text" ref="theTextUpdate" placeholder="update title" />
+      <input type="text" ref="theAuthorUpdate" placeholder="update author" />
+      <input type="text" ref="idToUpdate" placeholder="type the id to update" />
+
+      <input type="submit" value="submit" />
+    </form>
   </div>
 </template>
 <script>
 import {
   getFirestore,
   collection,
-  getDocs,
+  onSnapshot,
   addDoc,
   deleteDoc,
   doc,
+  query,
+  serverTimestamp,
+  orderBy,
+  updateDoc,
 } from "firebase/firestore";
 import { ref } from "vue";
 
@@ -43,16 +61,27 @@ export default {
     // getCollection data
 
     let books = ref([]);
-    getDocs(collectionRef)
-      .then((snapshot) => {
-        snapshot.docs.forEach((doc) => {
-          books.value.push({ ...doc.data(), id: doc.id });
-        });
-        console.log(books);
-      })
-      .catch((err) => {
-        console.log(err.message);
+    // getDocs(collectionRef) we replace it with onSnapshot to get a real time data , i think it is a good way to use with single page application
+
+    //   .then((snapshot) => {
+    //     snapshot.docs.forEach((doc) => {
+    //       books.value.push({ ...doc.data(), id: doc.id });
+    //     });
+    //     console.log(books);
+    //   })
+    //   .catch((err) => {
+    //     console.log(err.message);
+    //   });
+    const q = query(collectionRef, orderBy("createdAt"));
+    // the query method can use inside it a different method its call where (ninja 7) ex: to add a book to a specific author
+    //orderBy() its a function make us to arrange the data , the second param is optional (desc , sec)
+    onSnapshot(q, (snapshot) => {
+      // we can use the "collectionRef"  method instead of query
+      snapshot.docs.forEach((doc) => {
+        books.value.push({ ...doc.data(), id: doc.id });
       });
+      console.log(books);
+    });
 
     // Adding a new item
     const theText = ref(null);
@@ -62,6 +91,7 @@ export default {
       addDoc(collectionRef, {
         title: theText.value.value,
         author: theAuthor.value.value,
+        createdAt: serverTimestamp(), // its a method to add a time of post
       }).then(() => {
         form.value.reset();
       });
@@ -78,6 +108,43 @@ export default {
       });
     };
 
+    // get one item
+
+    const docRef = doc(db, "books", "L9Nag3vLEozO342dW4Os");
+
+    // also we can change it with onSnapsot too
+
+    // getDoc(docRef).then((doc) => {
+    //   console.log(doc);
+    // });
+    onSnapshot(docRef, (doc) => {
+      console.log(doc.data(), doc.id);
+    });
+
+    ////////////////////////////////////////////////////////////////////////////////////////////
+    // update documents
+
+    const theTextUpdate = ref(null);
+    const theAuthorUpdate = ref(null);
+    const formUpdate = ref(null);
+    const idToUpdate = ref(null);
+
+    const updateForm = () => {
+      const docRef = doc(db, "books", idToUpdate.value.value);
+
+      if (theTextUpdate.value.value) {
+        updateDoc(docRef, {
+          title: theTextUpdate.value.value,
+        });
+      }
+      if (theAuthorUpdate.value.value) {
+        updateDoc(docRef, {
+          author: theAuthorUpdate.value.value,
+        });
+      }
+      formUpdate.value.reset();
+    };
+
     return {
       books,
       addItem,
@@ -87,6 +154,11 @@ export default {
       deleteForm,
       deleteBook,
       deleteItem,
+      theTextUpdate,
+      theAuthorUpdate,
+      updateForm,
+      formUpdate,
+      idToUpdate,
     };
   },
 };
